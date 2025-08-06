@@ -12,15 +12,17 @@ st.set_page_config(
 mapear_emojis = {'V': '🔴', 'A': '🔵', 'E': '🟡'}
 nomes = {'V': 'Casa', 'A': 'Visitante', 'E': 'Empate'}
 
-# --- Inicialização do Estado ---
+# --- Estado da Sessão ---
 if 'historico' not in st.session_state:
     st.session_state.historico = collections.deque(maxlen=50)
 if 'estatisticas' not in st.session_state:
     st.session_state.estatisticas = {'Casa': 0, 'Visitante': 0, 'Empate': 0}
 if 'ultima_previsao' not in st.session_state:
     st.session_state.ultima_previsao = None
+if 'ultimo_resultado' not in st.session_state:
+    st.session_state.ultimo_resultado = None
 
-# --- Função: Analisar Padrão com Camada Quântica ---
+# --- Função Principal ---
 def analisar_padrao_quântico(historico):
     if len(historico) < 3:
         return ("Nenhum Padrão", 1, {}, "Insira mais resultados para análise.", None, "Aguardando...")
@@ -60,63 +62,77 @@ def analisar_padrao_quântico(historico):
     if 'E' in hist[:4]:
         nivel = max(nivel, 6)
         prob['Empate'] += 10
-        explicacao = "Empate recente atuando como âncora. Manipulação alta."
+        explicacao = "Empate recente atuando como âncora."
 
-    # Detectar reset ou isca
-    if len(hist) >= 5 and hist[0] == hist[1] and hist[2] != hist[0]:
+    # Detectar reset ou armadilha pós-ganho
+    if len(hist) >= 4 and hist[0] == hist[1] and hist[2] != hist[0]:
         nivel = max(nivel, 7)
         alerta_quântico = True
         explicacao = "Possível armadilha pós-ganho detectada."
 
     # --- CAMADA 3: Ruído Quântico ---
-    # Se nos últimos 6 não houver padrão claro → risco máximo
     if len(hist) >= 6 and len(set(hist[:6])) == 3:
         nivel = 9
         alerta_quântico = True
-        explicacao = "Ruído quântico detectado: mercado em colapso de previsibilidade."
+        explicacao = "Ruído quântico detectado: mercado em colapso."
 
     # Ajustar probabilidades
     soma = sum(prob.values())
     for k in prob:
         prob[k] = round(prob[k] / soma * 100, 1)
 
-    # Definir sugestão de entrada
+    # --- Sugestão baseada em contexto ---
     cenarios = sorted(prob.items(), key=lambda x: x[1], reverse=True)
     melhor_opcao, melhor_pct = cenarios[0]
     segunda_opcao, segundo_pct = cenarios[1]
     diferenca = melhor_pct - segundo_pct
 
+    # --- Lógica adaptativa ---
+    sugestao = "❓ Sem clareza: aguarde."
     if alerta_quântico or nivel >= 8:
         sugestao = "⚠ Mercado perigoso: NÃO entrar agora."
-    elif diferenca >= 8 and nivel >= 6:
-        sugestao = f"✅ Sinal Forte: Aposte em **{melhor_opcao}** ({melhor_pct}%)"
-    elif diferenca >= 5 and nivel >= 5:
-        sugestao = f"⚠ Sinal Moderado: Aposte em **{melhor_opcao}** ({melhor_pct}%)"
     else:
-        sugestao = "❓ Sem clareza: aguarde próximo padrão."
+        if st.session_state.ultima_previsao and st.session_state.ultimo_resultado:
+            if st.session_state.ultima_previsao == st.session_state.ultimo_resultado:
+                explicacao += " Última previsão foi correta, mantendo lógica."
+            else:
+                explicacao += " Última previsão falhou, ajustando estratégia para reversão."
+                if melhor_opcao != st.session_state.ultima_previsao:
+                    sugestao = f"🔄 Ajuste: Aposte em **{melhor_opcao}** ({melhor_pct}%)"
+        else:
+            if diferenca >= 8 and nivel >= 5:
+                sugestao = f"✅ Forte: Aposte em **{melhor_opcao}** ({melhor_pct}%)"
+            elif diferenca >= 5:
+                sugestao = f"⚠ Moderado: Aposte em **{melhor_opcao}** ({melhor_pct}%)"
+
+    # Atualizar memória
+    st.session_state.ultima_previsao = melhor_opcao
 
     return ("Padrão Detectado", nivel, dict(cenarios), explicacao, alerta_quântico, sugestao)
 
-# --- INTERFACE STREAMLIT ---
-st.title("🔮 Football Studio Analyzer - Camada Quântica")
-st.markdown("**Detecção multi-nível: clássicos, ocultos e manipulação quântica**")
+# --- INTERFACE ---
+st.title("🔮 Football Studio Analyzer - IA Quântica v2")
+st.markdown("**Análise avançada: padrões clássicos + ocultos + camada quântica adaptativa**")
 st.markdown("---")
 
-# --- Inserção ---
+# Inserção de dados
 st.subheader("1. Inserir Resultados")
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     if st.button("🔴 Casa", use_container_width=True):
         st.session_state.historico.append('V')
         st.session_state.estatisticas['Casa'] += 1
+        st.session_state.ultimo_resultado = "Casa"
 with col2:
     if st.button("🔵 Visitante", use_container_width=True):
         st.session_state.historico.append('A')
         st.session_state.estatisticas['Visitante'] += 1
+        st.session_state.ultimo_resultado = "Visitante"
 with col3:
     if st.button("🟡 Empate", use_container_width=True):
         st.session_state.historico.append('E')
         st.session_state.estatisticas['Empate'] += 1
+        st.session_state.ultimo_resultado = "Empate"
 with col4:
     if st.button("⏪ Desfazer", use_container_width=True):
         if st.session_state.historico:
@@ -130,18 +146,18 @@ with col5:
 
 st.markdown("---")
 
-# --- Histórico ---
+# Histórico
 st.subheader("2. Histórico")
 historico_str = " ".join([mapear_emojis[r] for r in reversed(st.session_state.historico)])
 st.markdown(f"**Mais Recente → Mais Antigo:** {historico_str if historico_str else 'Nenhum dado'}")
 
-# --- Análise ---
-st.subheader("3. Análise e Sugestão")
+# Análise
+st.subheader("3. Análise e Previsão")
 if st.session_state.historico:
     padrao, nivel, cenarios, explicacao, alerta, sugestao = analisar_padrao_quântico(list(st.session_state.historico))
 
     st.markdown(f"**Padrão Detectado:** `{padrao}`")
-    st.markdown(f"**Nível Quântico:** {nivel} / 9")
+    st.markdown(f"**Nível de Manipulação:** {nivel} / 9")
     st.info(explicacao)
 
     st.success("### 🔍 Probabilidades")
@@ -155,7 +171,7 @@ if st.session_state.historico:
 else:
     st.info("Adicione resultados para iniciar a análise.")
 
-# --- Estatísticas ---
+# Estatísticas
 st.markdown("---")
 st.subheader("4. Estatísticas Gerais")
 for lado, qtd in st.session_state.estatisticas.items():
