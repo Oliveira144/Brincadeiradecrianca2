@@ -262,14 +262,16 @@ if st.session_state.historico:
 else:
     st.info("Adicione resultados para iniciar a análise.")
 
-# GRÁFICO DE EVOLUÇÃO
+# GRÁFICO DE EVOLUÇÃO - CORREÇÃO APLICADA AQUI
 st.markdown("---")
 st.subheader("4. Evolução do Nível de Complexidade")
 if st.session_state.nivel_evolucao:
+    # CORREÇÃO: Sintaxe correta para criação do DataFrame
     df = pd.DataFrame({
-        "Jogada": list(range(1, len(st.session_state.nivel_evolucao) + 1),
+        "Jogada": list(range(1, len(st.session_state.nivel_evolucao) + 1)),
         "Nível": st.session_state.nivel_evolucao
     })
+    
     fig = px.line(df, x="Jogada", y="Nível", title="Evolução do Nível Quântico")
     fig.update_traces(line=dict(color="purple", width=3))
     fig.update_layout(yaxis=dict(range=[0, 10]))
