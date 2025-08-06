@@ -108,8 +108,7 @@ def analisar_padrao_quântico(historico):
                 sugestao = f"⚠ Moderado: Aposte em **{melhor_opcao}** ({melhor_pct}%)"
 
     # Atualizar memória e evolução
-    max_evolucao = 100
-    if len(st.session_state.nivel_evolucao) >= max_evolucao:
+    if len(st.session_state.nivel_evolucao) >= 100:
         st.session_state.nivel_evolucao.pop(0)
     st.session_state.nivel_evolucao.append(nivel)
     st.session_state.ultima_previsao = melhor_opcao
