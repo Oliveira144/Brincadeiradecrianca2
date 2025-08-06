@@ -1,6 +1,7 @@
 import streamlit as st
 import collections
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+import io
 
 # --- Configuração da Página ---
 st.set_page_config(
@@ -171,6 +172,9 @@ with st.sidebar:
     Simulador teórico para fins educacionais. 
     Não garantimos resultados. Jogue com responsabilidade.
     """)
+    
+    # Link para código fonte
+    st.markdown("[Código Fonte no GitHub](https://github.com/seu-usuario/seu-repositorio)")
 
 # Inserção de dados
 st.subheader("1. Inserir Resultados")
@@ -191,19 +195,19 @@ if casa_btn:
     st.session_state.historico.append('V')
     st.session_state.estatisticas['Casa'] += 1
     st.session_state.ultimo_resultado = "Casa"
-    st.experimental_rerun()
+    st.rerun()
 
 if visitante_btn:
     st.session_state.historico.append('A')
     st.session_state.estatisticas['Visitante'] += 1
     st.session_state.ultimo_resultado = "Visitante"
-    st.experimental_rerun()
+    st.rerun()
 
 if empate_btn:
     st.session_state.historico.append('E')
     st.session_state.estatisticas['Empate'] += 1
     st.session_state.ultimo_resultado = "Empate"
-    st.experimental_rerun()
+    st.rerun()
 
 if desfazer_btn and st.session_state.historico:
     ultimo = st.session_state.historico.pop()
@@ -212,7 +216,7 @@ if desfazer_btn and st.session_state.historico:
         st.session_state.ultimo_resultado = nomes[st.session_state.historico[-1]]
     else:
         st.session_state.ultimo_resultado = None
-    st.experimental_rerun()
+    st.rerun()
 
 if limpar_btn:
     st.session_state.historico.clear()
@@ -220,7 +224,7 @@ if limpar_btn:
     st.session_state.estatisticas = {'Casa': 0, 'Visitante': 0, 'Empate': 0}
     st.session_state.ultima_previsao = None
     st.session_state.ultimo_resultado = None
-    st.experimental_rerun()
+    st.rerun()
 
 st.markdown("---")
 
@@ -261,32 +265,30 @@ if st.session_state.historico:
 else:
     st.info("Adicione resultados para iniciar a análise.")
 
-# GRÁFICO DE EVOLUÇÃO SEM PANDAS
+# GRÁFICO DE EVOLUÇÃO COM MATPLOTLIB
 st.markdown("---")
 st.subheader("4. Evolução do Nível de Complexidade")
 if st.session_state.nivel_evolucao:
-    # Criar gráfico diretamente sem pandas
-    jogadas = list(range(1, len(st.session_state.nivel_evolucao) + 1))
-    niveis = st.session_state.nivel_evolucao
+    # Criar gráfico com matplotlib (nativo, funciona na nuvem)
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(range(1, len(st.session_state.nivel_evolucao) + 1), 
+            st.session_state.nivel_evolucao, 
+            marker='o', 
+            color='purple',
+            linewidth=2)
     
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=jogadas,
-        y=niveis,
-        mode='lines+markers',
-        line=dict(color='purple', width=3),
-        marker=dict(size=8)
-    ))
+    ax.set_title("Evolução do Nível Quântico")
+    ax.set_xlabel("Jogada")
+    ax.set_ylabel("Nível")
+    ax.set_ylim(0, 10)
+    ax.grid(True, linestyle='--', alpha=0.7)
     
-    fig.update_layout(
-        title="Evolução do Nível Quântico",
-        xaxis_title="Jogada",
-        yaxis_title="Nível",
-        yaxis=dict(range=[0, 10]),
-        showlegend=False
-    )
+    # Salvar em buffer para evitar problemas na nuvem
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.image(buf, use_column_width=True)
 else:
     st.info("Nenhum dado para exibir no gráfico.")
 
