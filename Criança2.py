@@ -1,7 +1,6 @@
 import streamlit as st
 import collections
-import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 
 # --- Configuração da Página ---
 st.set_page_config(
@@ -26,7 +25,7 @@ if 'ultimo_resultado' not in st.session_state:
 if 'nivel_evolucao' not in st.session_state:
     st.session_state.nivel_evolucao = []
 
-# --- Função de Análise com Cache ---
+# --- Função de Análise ---
 def analisar_padrao_quantico(historico):
     if len(historico) < 3:
         return ("Nenhum Padrão", 1, {}, "Insira mais resultados para análise.", None, "Aguardando...")
@@ -262,19 +261,31 @@ if st.session_state.historico:
 else:
     st.info("Adicione resultados para iniciar a análise.")
 
-# GRÁFICO DE EVOLUÇÃO - CORREÇÃO APLICADA AQUI
+# GRÁFICO DE EVOLUÇÃO SEM PANDAS
 st.markdown("---")
 st.subheader("4. Evolução do Nível de Complexidade")
 if st.session_state.nivel_evolucao:
-    # CORREÇÃO: Sintaxe correta para criação do DataFrame
-    df = pd.DataFrame({
-        "Jogada": list(range(1, len(st.session_state.nivel_evolucao) + 1)),
-        "Nível": st.session_state.nivel_evolucao
-    })
+    # Criar gráfico diretamente sem pandas
+    jogadas = list(range(1, len(st.session_state.nivel_evolucao) + 1))
+    niveis = st.session_state.nivel_evolucao
     
-    fig = px.line(df, x="Jogada", y="Nível", title="Evolução do Nível Quântico")
-    fig.update_traces(line=dict(color="purple", width=3))
-    fig.update_layout(yaxis=dict(range=[0, 10]))
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=jogadas,
+        y=niveis,
+        mode='lines+markers',
+        line=dict(color='purple', width=3),
+        marker=dict(size=8)
+    ))
+    
+    fig.update_layout(
+        title="Evolução do Nível Quântico",
+        xaxis_title="Jogada",
+        yaxis_title="Nível",
+        yaxis=dict(range=[0, 10]),
+        showlegend=False
+    )
+    
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("Nenhum dado para exibir no gráfico.")
