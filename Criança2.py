@@ -1,6 +1,5 @@
 import streamlit as st
 import collections
-import random
 import pandas as pd
 
 # --- Configuração da Página ---
@@ -51,7 +50,7 @@ def atualizar_pesos(resultado_real):
 # --- Função: Analisar e Prever ---
 def analisar_padrao(historico):
     if len(historico) < 2:
-        return ("Nenhum Padrão", 1, {}, "Insira mais resultados para iniciar.", None)
+        return ("Nenhum Padrão", 1, {}, "Insira mais resultados para iniciar.", None, None)
 
     hist = list(historico)[::-1]
 
@@ -109,11 +108,24 @@ def analisar_padrao(historico):
 
     st.session_state.ultima_previsao = (cenarios[0][0], padrao_usado)
 
-    return ("Padrão Detectado", nivel, cenarios_dict, explicacao, padrao_usado)
+    # --- Sugestão de Entrada ---
+    melhor_opcao, melhor_pct = cenarios[0]
+    segunda_opcao, segundo_pct = cenarios[1]
+    diferenca = melhor_pct - segundo_pct
+
+    if diferenca < 8:
+        sugestao = "Sem sugestão clara – aguarde padrão mais forte."
+    else:
+        sugestao = f"Aposte em **{melhor_opcao}** ({melhor_pct}%)"
+
+    if nivel >= 7:
+        sugestao += " ⚠ Manipulação alta – aposte leve!"
+
+    return ("Padrão Detectado", nivel, cenarios_dict, explicacao, padrao_usado, sugestao)
 
 # --- Interface ---
-st.title("🔮 Football Studio Analyzer - Versão Sem Plotly")
-st.markdown("**IA com aprendizado adaptativo, sem gráficos externos**")
+st.title("🔮 Football Studio Analyzer - Versão com Sugestão Direta")
+st.markdown("**IA com aprendizado adaptativo + sugestão clara de aposta**")
 st.markdown("---")
 
 # --- Inserção ---
@@ -157,7 +169,7 @@ st.markdown(f"**Mais Recente → Mais Antigo:** {historico_str if historico_str 
 # --- Análise ---
 st.subheader("3. Análise e Previsão")
 if st.session_state.historico:
-    padrao, nivel, cenarios, explicacao, padrao_usado = analisar_padrao(list(st.session_state.historico))
+    padrao, nivel, cenarios, explicacao, padrao_usado, sugestao = analisar_padrao(list(st.session_state.historico))
 
     st.markdown(f"**Padrão Detectado:** `{padrao}`")
     st.markdown(f"**Nível de Manipulação:** {nivel} / 9")
@@ -167,6 +179,7 @@ if st.session_state.historico:
     for nome, pct in cenarios.items():
         st.metric(label=nome, value=f"{pct}%")
 
+    st.warning(f"**Sugestão de Entrada:** {sugestao}")
     st.caption(f"📌 Padrão usado: {padrao_usado} (peso: {st.session_state.pesos[padrao_usado]:.2f})")
 
 else:
