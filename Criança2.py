@@ -3,7 +3,7 @@ import collections
 import pandas as pd
 import plotly.express as px
 
-# --- Configuração da Página (sempre primeiro!) ---
+# --- Configuração da Página ---
 st.set_page_config(
     page_title="Football Studio Analyzer",
     page_icon="🔮",
@@ -26,7 +26,7 @@ if 'ultimo_resultado' not in st.session_state:
 if 'nivel_evolucao' not in st.session_state:
     st.session_state.nivel_evolucao = []
 
-# --- Função Principal ---
+# --- Função de Análise ---
 def analisar_padrao_quântico(historico):
     if len(historico) < 3:
         return ("Nenhum Padrão", 1, {}, "Insira mais resultados para análise.", None, "Aguardando...")
@@ -165,7 +165,6 @@ st.subheader("2. Histórico em Grade")
 if st.session_state.historico:
     matriz = []
     linha = []
-    # Mostra mais antigo para mais recente (esquerda para direita, topo para baixo)
     for i, r in enumerate(st.session_state.historico):
         linha.append(mapear_emojis[r])
         if (i + 1) % 10 == 0:
@@ -196,10 +195,8 @@ if st.session_state.historico:
         st.error(f"**Alerta Quântico:** Mercado instável")
     st.warning(f"**Sugestão de Entrada:** {sugestao}")
 
-    # Mostrar último resultado e previsão
     st.markdown(f"**Último Resultado:** {st.session_state.ultimo_resultado}")
     st.markdown(f"**Última Previsão:** {st.session_state.ultima_previsao}")
-
 else:
     st.info("Adicione resultados para iniciar a análise.")
 
