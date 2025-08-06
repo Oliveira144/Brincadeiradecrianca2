@@ -3,7 +3,7 @@ import collections
 import pandas as pd
 import plotly.express as px
 
-# --- Configuração da Página ---
+# --- Configuração da Página (sempre primeiro!) ---
 st.set_page_config(
     page_title="Football Studio Analyzer",
     page_icon="🔮",
@@ -49,7 +49,7 @@ def analisar_padrao_quântico(historico):
         lado = 'Casa' if hist[0] == 'V' else 'Visitante'
         prob[lado] += 12
         explicacao = f"Sequência longa detectada ({seq})."
-    
+
     alternancia = True
     for i in range(min(len(hist), 6) - 1):
         if hist[i] == hist[i+1]:
@@ -95,6 +95,8 @@ def analisar_padrao_quântico(historico):
         if st.session_state.ultima_previsao and st.session_state.ultimo_resultado:
             if st.session_state.ultima_previsao == st.session_state.ultimo_resultado:
                 explicacao += " Última previsão correta."
+                if diferenca >= 5:
+                    sugestao = f"✅ Aposte em **{melhor_opcao}** ({melhor_pct}%)"
             else:
                 explicacao += " Última previsão falhou, invertendo lógica."
                 if melhor_opcao != st.session_state.ultima_previsao:
@@ -106,8 +108,11 @@ def analisar_padrao_quântico(historico):
                 sugestao = f"⚠ Moderado: Aposte em **{melhor_opcao}** ({melhor_pct}%)"
 
     # Atualizar memória e evolução
-    st.session_state.ultima_previsao = melhor_opcao
+    max_evolucao = 100
+    if len(st.session_state.nivel_evolucao) >= max_evolucao:
+        st.session_state.nivel_evolucao.pop(0)
     st.session_state.nivel_evolucao.append(nivel)
+    st.session_state.ultima_previsao = melhor_opcao
 
     return ("Padrão Detectado", nivel, dict(cenarios), explicacao, alerta_quântico, sugestao)
 
@@ -139,12 +144,19 @@ with col4:
         if st.session_state.historico:
             ultimo = st.session_state.historico.pop()
             st.session_state.estatisticas[nomes[ultimo]] -= 1
+            if st.session_state.historico:
+                ultimo_removido = st.session_state.historico[-1]
+                st.session_state.ultimo_resultado = nomes[ultimo_removido]
+            else:
+                st.session_state.ultimo_resultado = None
 with col5:
     if st.button("🗑 Limpar", type="primary", use_container_width=True):
         st.session_state.historico.clear()
         st.session_state.nivel_evolucao.clear()
         for k in st.session_state.estatisticas:
             st.session_state.estatisticas[k] = 0
+        st.session_state.ultima_previsao = None
+        st.session_state.ultimo_resultado = None
 
 st.markdown("---")
 
@@ -153,7 +165,8 @@ st.subheader("2. Histórico em Grade")
 if st.session_state.historico:
     matriz = []
     linha = []
-    for i, r in enumerate(reversed(st.session_state.historico)):
+    # Mostra mais antigo para mais recente (esquerda para direita, topo para baixo)
+    for i, r in enumerate(st.session_state.historico):
         linha.append(mapear_emojis[r])
         if (i + 1) % 10 == 0:
             matriz.append(linha)
@@ -182,6 +195,11 @@ if st.session_state.historico:
     if alerta:
         st.error(f"**Alerta Quântico:** Mercado instável")
     st.warning(f"**Sugestão de Entrada:** {sugestao}")
+
+    # Mostrar último resultado e previsão
+    st.markdown(f"**Último Resultado:** {st.session_state.ultimo_resultado}")
+    st.markdown(f"**Última Previsão:** {st.session_state.ultima_previsao}")
+
 else:
     st.info("Adicione resultados para iniciar a análise.")
 
