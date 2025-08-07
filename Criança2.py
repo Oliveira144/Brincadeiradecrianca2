@@ -95,14 +95,66 @@ def analisar_padrao(historico):
 # --- Inicialização do estado da sessão ---
 if 'historico' not in st.session_state:
     st.session_state.historico = collections.deque(maxlen=30) 
+if 'banca_inicial' not in st.session_state:
+    st.session_state.banca_inicial = None
+if 'banca_atual' not in st.session_state:
+    st.session_state.banca_atual = 0.0
+if 'acertos' not in st.session_state:
+    st.session_state.acertos = 0
+if 'erros' not in st.session_state:
+    st.session_state.erros = 0
+if 'pct_aposta' not in st.session_state:
+    st.session_state.pct_aposta = 2.0
+
+# --- Funções de Gestão de Banca ---
+def atualizar_banca(resultado):
+    if st.session_state.banca_atual <= 0:
+        st.warning("Sua banca está zerada. Insira um novo valor inicial.")
+        return
+
+    valor_aposta = st.session_state.banca_atual * (st.session_state.pct_aposta / 100)
+    if resultado == 'ganhou':
+        st.session_state.banca_atual += valor_aposta
+        st.session_state.acertos += 1
+    elif resultado == 'perdeu':
+        st.session_state.banca_atual -= valor_aposta
+        st.session_state.erros += 1
 
 # --- Layout do aplicativo ---
 st.title("🔮 Analisador de Padrões de Apostas")
 st.markdown("Uma ferramenta para identificar e analisar padrões em sequências de resultados.")
 st.markdown("---")
 
-## 1. Inserir Resultados
-st.markdown("### 1. Inserir Resultados")
+## 1. Gestão de Banca
+st.markdown("### 1. Gestão de Banca")
+st.write("Defina sua banca e o percentual de aposta para um controle financeiro inteligente.")
+
+col_banca1, col_banca2 = st.columns(2)
+with col_banca1:
+    banca_input = st.number_input("Banca Inicial (R$):", min_value=0.0, step=10.0, format="%.2f")
+    if st.button("Definir Banca", use_container_width=True):
+        st.session_state.banca_inicial = banca_input
+        st.session_state.banca_atual = banca_input
+        st.session_state.acertos = 0
+        st.session_state.erros = 0
+
+with col_banca2:
+    st.session_state.pct_aposta = st.number_input("Percentual da Aposta (%):", min_value=0.1, max_value=10.0, value=2.0, step=0.1, format="%.1f")
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.session_state.banca_atual > 0:
+        valor_aposta = st.session_state.banca_atual * (st.session_state.pct_aposta / 100)
+        st.info(f"**Próxima Aposta Sugerida:** R$ {valor_aposta:.2f}")
+
+if st.session_state.banca_inicial is not None:
+    st.markdown(f"**Banca Atual:** R$ {st.session_state.banca_atual:.2f} | **Acertos:** {st.session_state.acertos} | **Erros:** {st.session_state.erros}")
+    st.markdown(f"**Lucro/Prejuízo:** R$ {(st.session_state.banca_atual - st.session_state.banca_inicial):.2f}")
+    if st.session_state.banca_atual <= 0:
+        st.error("Sua banca zerou. Por favor, insira um novo valor para continuar.")
+
+st.markdown("---")
+
+## 2. Inserir Resultados
+st.markdown("### 2. Inserir Resultados")
 st.write("Clique nos botões correspondentes ao resultado do jogo para adicionar ao histórico.")
 
 col1, col2, col3 = st.columns(3)
@@ -116,24 +168,14 @@ with col3:
     if st.button("🟡 Empate", use_container_width=True):
         st.session_state.historico.append('E')
 
-col4, col5 = st.columns([0.5, 1.5])
+col4, col5 = st.columns(2)
 with col4:
-    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("Desfazer", help="Remove o último resultado inserido", use_container_width=True):
         if st.session_state.historico:
             st.session_state.historico.pop()
 with col5:
-    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("Limpar Histórico", help="Apaga todos os resultados", type="primary", use_container_width=True):
         st.session_state.historico.clear()
-
-st.markdown("---")
-
-## 2. Histórico de Resultados
-st.markdown("### 2. Histórico de Resultados")
-historico_str = " ".join([mapear_emojis[r] for r in reversed(st.session_state.historico)])
-st.markdown(f"**Mais Recente → Mais Antigo:**")
-st.markdown(f"### `{historico_str}`")
 
 st.markdown("---")
 
@@ -141,12 +183,33 @@ st.markdown("---")
 st.markdown("### 3. Análise e Sugestão")
 if st.session_state.historico:
     padrao, sugestao_direta, sugestao_completa = analisar_padrao(list(st.session_state.historico))
-    
     st.markdown(f"**Padrão Detectado:** `{padrao}`")
     st.success(f"**{sugestao_direta}**")
     st.info(f"**Explicação:** {sugestao_completa}")
+    
+    st.markdown("---")
+    st.markdown("#### Registro do Resultado da Aposta")
+    col_aposta1, col_aposta2 = st.columns(2)
+    with col_aposta1:
+        if st.session_state.banca_atual > 0:
+            if st.button("Ganhei ✅", use_container_width=True):
+                atualizar_banca('ganhou')
+                st.success("Banca atualizada! Vitória registrada.")
+    with col_aposta2:
+        if st.session_state.banca_atual > 0:
+            if st.button("Perdi ❌", use_container_width=True):
+                atualizar_banca('perdeu')
+                st.error("Banca atualizada! Derrota registrada.")
 else:
     st.info("O histórico está vazio. Insira resultados para começar a análise.")
+
+st.markdown("---")
+
+## 4. Histórico de Resultados
+st.markdown("### 4. Histórico de Resultados")
+historico_str = " ".join([mapear_emojis[r] for r in reversed(st.session_state.historico)])
+st.markdown(f"**Mais Recente → Mais Antigo:**")
+st.markdown(f"### `{historico_str}`")
 
 # Agradecimento
 st.markdown("<br><br>", unsafe_allow_html=True)
