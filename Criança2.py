@@ -15,7 +15,7 @@ mapear_emojis = {'V': '🔴', 'A': '🔵', 'E': '🟡'}
 def analisar_padrao(historico):
     """
     Analisa o histórico e retorna o padrão detectado e a sugestão de aposta,
-    focando na detecção das "brechas" de manipulação do cassino.
+    focando na detecção das "brechas" de manipulação do cassino com maior confiança.
     """
     if len(historico) < 2:
         return "Nenhum Padrão Detectado", "Aguardando...", "Insira mais resultados para iniciar a análise."
@@ -23,8 +23,8 @@ def analisar_padrao(historico):
     # Invertemos o histórico para analisar do mais recente para o mais antigo
     hist_recente = list(historico)[::-1]
 
-    # --- ANÁLISE DE BRECHAS DE MANIPULAÇÃO (prioridade) ---
-    
+    # --- ANÁLISE DAS BRECHAS DE MAIOR CONFIANÇA (Prioridade Máxima) ---
+
     # 1. Brecha da Saturação do Padrão (Repetição Excessiva)
     count_seq = 0
     if len(hist_recente) >= 3:
@@ -36,78 +36,64 @@ def analisar_padrao(historico):
     
     if count_seq >= 4:
         lado_oposto = mapear_emojis['A' if hist_recente[0] == 'V' else 'V']
-        sugestao_direta = f"⚠️ CUIDADO! Brecha da Saturação. Aposte em {lado_oposto}"
-        sugestao_completa = f"A mesma cor ({mapear_emojis[hist_recente[0]]}) venceu {count_seq} vezes. O cassino tende a quebrar este padrão agora. A sugestão é **inverter a aposta**."
+        sugestao_direta = f"🎯 Brecha de Saturação! Aposte na quebra: {lado_oposto}"
+        sugestao_completa = f"**ALTA CONFIANÇA:** A mesma cor ({mapear_emojis[hist_recente[0]]}) venceu **{count_seq} vezes**. O cassino cria essa sequência para atrair apostas e, em seguida, a quebra. A sugestão é **inverter a aposta** no próximo jogo."
         return "Brecha 1. Saturação do Padrão", sugestao_direta, sugestao_completa
 
     # 2. Brecha do Empate como Âncora de Mudança
     if len(hist_recente) >= 3 and hist_recente[0] != 'E' and hist_recente[1] == 'E' and hist_recente[2] != hist_recente[0]:
         lado_oposto = mapear_emojis['A' if hist_recente[2] == 'V' else 'V']
-        sugestao_direta = f"⚠️ Brecha do Empate. Aposte em {lado_oposto}"
-        sugestao_completa = f"Empate ({mapear_emojis['E']}) como âncora após um resultado de {mapear_emojis[hist_recente[2]]}. O cassino pode estar reiniciando o ciclo. Aposte no oposto do resultado anterior ao empate."
+        sugestao_direta = f"🎯 Brecha do Empate! Aposte na inversão: {lado_oposto}"
+        sugestao_completa = f"**MÉDIA CONFIANÇA:** O empate ({mapear_emojis['E']}) é usado como uma âncora para reiniciar o ciclo. A tendência é que a IA force uma inversão para o lado oposto do resultado que antecedeu o empate. A sugestão é **apostar no lado oposto**."
         return "Brecha 2. Empate como Âncora", sugestao_direta, sugestao_completa
     
-    # 3. Brecha do Delay de Manipulação
-    if len(hist_recente) >= 4 and hist_recente[0] != hist_recente[1] and hist_recente[1] == hist_recente[2] and hist_recente[2] == hist_recente[3]:
-        lado_oposto = mapear_emojis['A' if hist_recente[1] == 'V' else 'V']
-        sugestao_direta = f"Brecha do Delay detectada. Aposte em {lado_oposto}"
-        sugestao_completa = f"O cassino repetiu a cor ({mapear_emojis[hist_recente[1]]}) e deu uma pausa com um resultado oposto ({mapear_emojis[hist_recente[0]]}). A tendência é inverter agora."
-        return "Brecha 3. Delay de Manipulação", sugestao_direta, sugestao_completa
+    # --- ANÁLISE DE BRECHAS SECUNDÁRIAS (Menor Prioridade) ---
 
-    # 4. Brecha do Padrão Armadilha (Falso Padrão)
+    # 3. Brecha do Padrão Armadilha (Falso Padrão)
     count_ping_pong = 0
     if len(hist_recente) >= 4:
         for i in range(len(hist_recente) - 1):
-            if hist_recente[i] != hist_recente[i+1]:
+            if hist_recente[i] != hist_recente[i+1] and hist_recente[i] != 'E' and hist_recente[i+1] != 'E':
                 count_ping_pong += 1
             else:
                 break
     if count_ping_pong >= 3:
-        sugestao_direta = f"⚠️ Padrão Armadilha! Aposta na quebra: {mapear_emojis[hist_recente[0]]}"
-        sugestao_completa = f"Padrão de 'zig-zag' fácil de identificar ({count_ping_pong + 1} alternâncias). O cassino tende a quebrar este padrão para fisgar o jogador. Sugestão: **Não siga a alternância.**"
+        sugestao_direta = f"⚠️ Padrão Armadilha! Falso padrão em andamento."
+        sugestao_completa = f"**CAUTELA:** Há um padrão de 'zig-zag' fácil de identificar ({count_ping_pong + 1} alternâncias). O cassino tende a quebrar este padrão para fisgar o jogador. A sugestão é **não seguir a alternância** e esperar por uma quebra confirmada."
         return "Brecha 4. Padrão Armadilha", sugestao_direta, sugestao_completa
 
+    # 4. Brecha do Zig-Zag Interrompido
+    if len(hist_recente) >= 5 and hist_recente[0] == hist_recente[1] and hist_recente[2] != hist_recente[3] and hist_recente[3] != hist_recente[4]:
+        sugestao_direta = f"🎯 Zig-Zag Interrompido! Aposte na nova tendência: {mapear_emojis[hist_recente[0]]}"
+        sugestao_completa = f"**MÉDIA CONFIANÇA:** O padrão de zig-zag foi quebrado. A IA pode ter iniciado uma nova sequência. A sugestão é **apostar no novo lado que se repetiu** para entrar na nova tendência."
+        return "Brecha 7. Zig-Zag Interrompido", sugestao_direta, sugestao_completa
+    
     # 5. Brecha da Inversão de Ciclo
     if len(hist_recente) >= 6 and hist_recente[0:3] == hist_recente[3:6][::-1]:
-        sugestao_direta = "Cautela! Inversão de Ciclo detectada"
-        sugestao_completa = "A IA do cassino repetiu um ciclo (ex: 🔴🔴🔵) e depois o inverteu (ex: 🔵🔵🔴). Espere para ver a nova tendência."
+        sugestao_direta = "⚠️ Inversão de Ciclo. Espere a confirmação!"
+        sugestao_completa = "**CAUTELA:** A IA repetiu um ciclo (ex: 🔴🔴🔵) e depois o inverteu (ex: 🔵🔵🔴). Este é um sinal de manipulação. A sugestão é **não apostar** até que uma nova tendência se forme."
         return "Brecha 5. Inversão de Ciclo", sugestao_direta, sugestao_completa
 
     # 6. Brecha do Colapso Lógico (Ruído Controlado)
     if len(historico) > 5 and 'E' not in hist_recente:
         vitorias = hist_recente.count('V')
         derrotas = hist_recente.count('A')
-        if abs(vitorias - derrotas) > 4: # Um valor arbitrário para identificar desbalanceamento extremo
-            sugestao_direta = "⚠️ CUIDADO! Colapso Lógico. Fique de fora!"
-            sugestao_completa = "A sequência parece ignorar toda lógica estatística. O cassino pode estar em modo de manipulação bruta. **Não aposte e espere a sequência quebrar.**"
+        if abs(vitorias - derrotas) > 4:
+            sugestao_direta = "❌ Brecha de Colapso Lógico! Fique de fora!"
+            sugestao_completa = "**BAIXA CONFIANÇA:** A sequência parece ignorar toda lógica estatística. O cassino pode estar em modo de manipulação bruta. **Não aposte e espere a sequência quebrar e uma nova tendência se formar.**"
             return "Brecha 6. Colapso Lógico", sugestao_direta, sugestao_completa
-    
-    # 7. Brecha do Zig-Zag Interrompido
-    if len(hist_recente) >= 5 and hist_recente[0] == hist_recente[1] and hist_recente[2] != hist_recente[3] and hist_recente[3] != hist_recente[4]:
-        sugestao_direta = f"Aposta na nova tendência: {mapear_emojis[hist_recente[0]]}"
-        sugestao_completa = "Um padrão de zig-zag foi quebrado. O cassino pode ter iniciado uma nova sequência. A sugestão é apostar no novo lado que se repetiu."
-        return "Brecha 7. Zig-Zag Interrompido", sugestao_direta, sugestao_completa
-    
-    # 8. Brecha da Frequência Dominante
-    if len(historico) > 6:
-        last_dominant = collections.Counter(hist_recente[3:6]).most_common(1)[0][0]
-        current_dominant = collections.Counter(hist_recente[0:3]).most_common(1)[0][0]
-        if last_dominant != current_dominant:
-            sugestao_direta = f"Frequência Dominante mudando. Aposte em {mapear_emojis[current_dominant]}"
-            sugestao_completa = f"A IA pode ter usado a dominância anterior ({mapear_emojis[last_dominant]}) para atrair apostas e agora está mudando para o lado oposto ({mapear_emojis[current_dominant]})."
-            return "Brecha 8. Frequência Dominante", sugestao_direta, sugestao_completa
 
     # --- Padrão de Ruído Controlado / Quântico (Caso nenhum outro se encaixe) ---
-    sugestao_direta = "Cautela! Não aposte pesado"
-    sugestao_completa = "A sequência parece aleatória. Sugestão: Cautela, não há padrão claro. Evite apostas pesadas."
+    sugestao_direta = "Cautela! Nenhum padrão claro detectado."
+    sugestao_completa = "A sequência atual não apresenta uma brecha clara. A sugestão é **evitar apostas pesadas** e aguardar a formação de um novo padrão de manipulação."
     return "Ruído Controlado / Quântico", sugestao_direta, sugestao_completa
 
 # --- Inicialização do estado da sessão ---
 if 'historico' not in st.session_state:
-    st.session_state.historico = collections.deque(maxlen=20) # Limita a 20 resultados
+    st.session_state.historico = collections.deque(maxlen=20)
 
 # --- Layout do aplicativo ---
-st.title("🔮 Analisador de Padrões de Apostas (versão Brechas)")
+st.title("🔮 Analisador de Padrões de Apostas (versão Brechas Otimizada)")
 st.markdown("---")
 
 st.markdown("### 1. Inserir Resultados")
@@ -141,16 +127,17 @@ st.markdown(f"**Mais Recente → Mais Antigo:** {historico_str}")
 
 st.markdown("---")
 
-st.markdown("### 3. Análise e Sugestão")
+st.markdown("### 3. Análise e Sugestão de Entrada")
 if st.session_state.historico:
     padrao, sugestao_direta, sugestao_completa = analisar_padrao(list(st.session_state.historico))
     st.markdown(f"**Padrão Detectado:** `{padrao}`")
     
-    # Adicionando um destaque para as sugestões de cautela
-    if "CUIDADO!" in sugestao_direta or "Fique de fora!" in sugestao_direta:
+    if "🎯" in sugestao_direta:
+        st.success(f"**{sugestao_direta}**")
+    elif "⚠️" in sugestao_direta:
         st.warning(f"**{sugestao_direta}**")
     else:
-        st.success(f"**{sugestao_direta}**")
+        st.info(f"**{sugestao_direta}**")
     
     st.info(f"**Explicação:** {sugestao_completa}")
 else:
