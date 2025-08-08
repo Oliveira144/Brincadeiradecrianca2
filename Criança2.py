@@ -1,217 +1,284 @@
+# Parte inicial igual...
 import streamlit as st
-import collections
+import time
 
-# --- Configuração da página ---
-st.set_page_config(
-    page_title="Analisador de Padrões de Apostas",
-    page_icon="🔮",
-    layout="wide"
-)
+st.set_page_config(page_title="Sistema de Análise Preditiva - Cassino", layout="wide")
 
-# --- Variáveis de Mapeamento ---
-mapear_emojis = {'V': '🔴', 'A': '🔵', 'E': '🟡'}
+if 'history' not in st.session_state:
+    st.session_state.history = []
 
-# --- Funções de Análise de Padrões ---
-def analisar_padrao(historico):
-    """
-    Analisa o histórico com base nas "brechas do cassino" para prever a quebra de padrões.
-    A lógica agora é preditiva e se baseia na manipulação do jogo.
-    """
-    if len(historico) < 2:
-        return "Aguardando Resultados", "Insira mais resultados para iniciar a análise.", "Aguarde o jogo andar para buscar um padrão."
+if 'analysis' not in st.session_state:
+    st.session_state.analysis = {
+        'patterns': [],
+        'riskLevel': 'low',
+        'manipulation': 'none',
+        'prediction': None,
+        'confidence': 0,
+        'recommendation': 'watch',
+        'manipulation_level': 1,
+        'manipulation_notes': []
+    }
 
-    # Invertemos o histórico para analisar do mais recente para o mais antigo
-    hist_recente = list(historico)[::-1]
-    
-    # Define os lados (Vencedor, Visitante) para facilitar a leitura
-    lado_mais_recente = hist_recente[0]
-    
-    # --- ANÁLISE PRIORITÁRIA DAS BRECHAS DO CASSINO ---
+emoji_map = {'C': '🔴', 'V': '🔵', 'E': '🟡'}
 
-    # 1. Brecha da Saturação do Padrão (Repetição Excessiva) - Após 3 repetições, prepare-se para a quebra
-    if len(hist_recente) >= 4 and hist_recente[0] == hist_recente[1] == hist_recente[2] == hist_recente[3]:
-        lado_saturado = mapear_emojis[lado_mais_recente]
-        return "Saturação do Padrão", f"Aguarde a quebra!", f"Brecha da Saturação. A IA está atraindo apostas com {lado_saturado}. Prepare-se para a quebra e aposte no oposto."
-    
-    # 2. Brecha do Empate como Âncora de Mudança
-    if len(hist_recente) >= 3 and hist_recente[1] == 'E':
-        lado_anterior_ao_empate = hist_recente[2]
-        lado_oposto = 'A' if lado_anterior_ao_empate == 'V' else 'V'
-        sugestao = mapear_emojis[lado_oposto]
-        return "Empate como Âncora", f"Aposte em {sugestao}", "Brecha do Empate como Âncora. O empate foi usado para reiniciar o ciclo. Aposte no oposto do resultado anterior ao empate."
+def add_result(result):
+    st.session_state.history.append({'result': result, 'timestamp': time.time()})
+    analyze_data()
 
-    # 3. Brecha do Delay de Manipulação
-    if len(hist_recente) >= 4 and hist_recente[0] != hist_recente[1] and hist_recente[1] == hist_recente[2] and hist_recente[2] != hist_recente[3]:
-        lado_oposto = mapear_emojis[hist_recente[3]]
-        return "Delay de Manipulação", f"Aposte em {lado_oposto}", "Brecha do Delay de Manipulação. Após uma sequência curta, a IA faz uma pausa para confundir e retoma o lado oposto. Aposte na nova tendência."
+def reset_history():
+    st.session_state.history = []
+    st.session_state.analysis = {
+        'patterns': [],
+        'riskLevel': 'low',
+        'manipulation': 'none',
+        'prediction': None,
+        'confidence': 0,
+        'recommendation': 'watch',
+        'manipulation_level': 1,
+        'manipulation_notes': []
+    }
 
-    # 4. Brecha do Padrão Armadilha (Falso Padrão)
-    # Exemplo: 🔴🔵🔴🔵 -> A IA vai quebrar na próxima jogada
-    count_alternancia = 0
-    if len(hist_recente) >= 2:
-        for i in range(len(hist_recente) - 1):
-            if hist_recente[i] != hist_recente[i+1]:
-                count_alternancia += 1
-            else:
-                break
-    if count_alternancia >= 3:
-        lado_quebra = mapear_emojis[hist_recente[0]]
-        return "Padrão Armadilha", f"Cautela! Pode haver quebra", f"Brecha do Padrão Armadilha. O padrão de alternância parece fácil demais. A IA pode quebrar este padrão agora. Sugestão: Aposte contra a alternância ou espere a quebra."
+# ⚙️ ANALISE COMPLETA
+def analyze_data():
+    data = st.session_state.history
+    if len(data) < 6: return
 
-    # 5. Brecha da Inversão de Ciclo (Ciclo Reverso)
-    if len(hist_recente) >= 6 and hist_recente[0:3] == hist_recente[3:6][::-1] and 'E' not in hist_recente[0:6]:
-        lado_oposto_ultimo_ciclo = mapear_emojis[hist_recente[5]]
-        return "Inversão de Ciclo", f"Aposte em {lado_oposto_ultimo_ciclo}", "Brecha da Inversão de Ciclo. A IA inverte um ciclo anterior para confundir. Aposte no lado do primeiro resultado do ciclo anterior."
+    recent = data[-27:]
+    patterns = detect_patterns(recent)
+    riskLevel = assess_risk(recent)
+    manipulation = detect_manipulation(recent)
+    prediction = make_prediction(recent, patterns)
+    level, notes = classify_manipulation_level(recent)
 
-    # 6. Brecha do Colapso Lógico (Manipulação Bruta)
-    # Se a sequência de um lado é maior que 6 e não há padrão óbvio, é manipulação bruta.
-    count_seq = 0
-    for r in hist_recente:
-        if r == lado_mais_recente:
-            count_seq += 1
+    st.session_state.analysis = {
+        'patterns': patterns,
+        'riskLevel': riskLevel,
+        'manipulation': manipulation,
+        'prediction': prediction['color'],
+        'confidence': prediction['confidence'],
+        'recommendation': get_recommendation(riskLevel, manipulation, patterns),
+        'manipulation_level': level,
+        'manipulation_notes': notes
+    }
+
+# 🔍 FUNÇÕES PARA DETECÇÃO DOS 10 NÍVEIS
+def classify_manipulation_level(data):
+    results = [d['result'] for d in data]
+    level = 1
+    notes = []
+
+    if detect_simple_streak(results): level = 1; notes.append("Streak simples identificado")
+    elif detect_alternating(results): level = 2; notes.append("Alternância clara (1x1)")
+    elif detect_2x2_or_3x3(results): level = 3; notes.append("Padrão 2x2 ou 3x3")
+    elif detect_fake_streak_break(results): level = 4; notes.append("Quebra proposital de streak")
+    elif detect_anchor_empates(results): level = 5; notes.append("Empates como âncora")
+    elif detect_hidden_loop(results): level = 6; notes.append("Loop reverso escondido")
+    elif detect_strategic_break(results): level = 7; notes.append("Quebra estratégica após padrão")
+    elif detect_quantum_manipulation(results): level = 8; notes.append("Interferência quântica detectada")
+    elif detect_collapse_with_draw(results): level = 9; notes.append("Colapso de possibilidades + empate")
+    elif detect_camouflaged_quantum(results): level = 10; notes.append("Manipulação quântica camuflada")
+
+    return level, notes
+
+# 🔬 LÓGICAS BÁSICAS DOS NÍVEIS
+def detect_simple_streak(results):
+    return len(results) >= 3 and results[-1] == results[-2] == results[-3]
+
+def detect_alternating(results):
+    return len(results) >= 4 and all(results[i] != results[i+1] for i in range(-4, -1))
+
+def detect_2x2_or_3x3(results):
+    if len(results) >= 6:
+        last6 = results[-6:]
+        return last6[:3] == last6[3:] or (last6[0] == last6[1] and last6[2] == last6[3] and last6[4] == last6[5])
+    return False
+
+def detect_fake_streak_break(results):
+    if len(results) >= 5:
+        return results[-3] == results[-2] and results[-1] != results[-2]
+    return False
+
+def detect_anchor_empates(results):
+    return results[-1] == 'E' and ('C' in results[-4:-1] or 'V' in results[-4:-1])
+
+def detect_hidden_loop(results):
+    return len(results) >= 6 and results[-6] == results[-3] == results[-1]
+
+def detect_strategic_break(results):
+    if len(results) >= 7:
+        if results[-3] == results[-4] == results[-5] and results[-1] != results[-2]:
+            return True
+    return False
+
+def detect_quantum_manipulation(results):
+    return results.count('E') >= 3 and len(set(results[-5:])) >= 4
+
+def detect_collapse_with_draw(results):
+    return results[-1] == 'E' and results[-2] != results[-3] and results[-4] == results[-5]
+
+def detect_camouflaged_quantum(results):
+    return results[-1] == 'C' and results[-2] == 'V' and results[-3] == 'E' and results[-4] == 'C'
+
+# 🔮 FUNÇÕES ORIGINAIS (ajustadas se necessário) — CONTINUA...
+def detect_patterns(data):
+    patterns = []
+    results = [d['result'] for d in data]
+
+    current_streak = 1
+    current_color = results[-1]
+    for i in range(len(results)-2, -1, -1):
+        if results[i] == current_color:
+            current_streak += 1
         else:
             break
-    if count_seq >= 6:
-        return "Colapso Lógico", "NÃO APOSTE!", "Brecha do Colapso Lógico. A sequência é longa demais e improvável. O cassino está forçando. Espere a quebra e o novo padrão surgir."
 
-    # 7. Brecha do Zig-Zag Interrompido
-    # Exemplo: 🔴🔵🔴🔵🔵 -> A quebra ocorreu no final
-    if len(hist_recente) >= 5 and hist_recente[0] == hist_recente[1] and hist_recente[2] != hist_recente[3] and hist_recente[3] == hist_recente[4]:
-        lado_novo = mapear_emojis[hist_recente[0]]
-        return "Zig-Zag Interrompido", f"Aposte em {lado_novo}", "Brecha do Zig-Zag Interrompido. A alternância foi quebrada. O cassino está tentando iniciar uma nova sequência. Acompanhe a nova tendência."
+    if current_streak >= 2:
+        patterns.append({
+            'type': 'streak',
+            'color': current_color,
+            'length': current_streak,
+            'description': f"{current_streak}x {get_color_name(current_color)} seguidas"
+        })
 
-    # 8. Brecha da Frequência Dominante com Interrupção
-    # Conta a frequência dos últimos 10 resultados
-    if len(hist_recente) >= 10:
-        contagem = collections.Counter(hist_recente[0:10])
-        lado_dominante, freq_dominante = contagem.most_common(1)[0]
-        if freq_dominante > 5 and lado_mais_recente != lado_dominante:
-            sugestao = mapear_emojis[lado_mais_recente]
-            return "Frequência Dominante", f"Aposte em {sugestao}", "Brecha da Frequência Dominante. Uma cor estava dominante, mas a IA mudou de direção. Aposte na nova tendência, que pode se tornar a próxima dominante."
+    if len(results) >= 4:
+        alternating = True
+        for i in range(-1, -4, -1):
+            if i-1 >= -len(results) and results[i] == results[i-1]:
+                alternating = False
+                break
+        if alternating:
+            patterns.append({'type': 'alternating', 'description': 'Padrão alternado detectado'})
 
-    # Se nenhum padrão foi detectado, consideramos a análise como Ruído Controlado
-    return "Ruído Controlado", "Cautela!", "A sequência parece aleatória. Evite apostas pesadas e espere por um padrão claro."
+        last4 = results[-4:]
+        if last4[0] == last4[1] and last4[2] == last4[3] and last4[0] != last4[2]:
+            patterns.append({'type': '2x2', 'description': 'Padrão 2x2 detectado'})
 
-# --- Inicialização do estado da sessão ---
-if 'historico' not in st.session_state:
-    st.session_state.historico = collections.deque(maxlen=30) 
-if 'banca_inicial' not in st.session_state:
-    st.session_state.banca_inicial = None
-if 'banca_atual' not in st.session_state:
-    st.session_state.banca_atual = 0.0
-if 'acertos' not in st.session_state:
-    st.session_state.acertos = 0
-if 'erros' not in st.session_state:
-    st.session_state.erros = 0
-if 'pct_aposta' not in st.session_state:
-    st.session_state.pct_aposta = 2.0
+    return patterns
 
-# --- Funções de Gestão de Banca ---
-def atualizar_banca(resultado):
-    if st.session_state.banca_atual <= 0:
-        st.warning("Sua banca está zerada. Insira um novo valor inicial.")
-        return
+def assess_risk(data):
+    results = [d['result'] for d in data]
+    risk_score = 0
 
-    valor_aposta = st.session_state.banca_atual * (st.session_state.pct_aposta / 100)
-    if resultado == 'ganhou':
-        st.session_state.banca_atual += valor_aposta
-        st.session_state.acertos += 1
-    elif resultado == 'perdeu':
-        st.session_state.banca_atual -= valor_aposta
-        st.session_state.erros += 1
+    max_streak = 1
+    current_streak = 1
+    current_color = results[0]
+    for i in range(1, len(results)):
+        if results[i] == current_color:
+            current_streak += 1
+            max_streak = max(max_streak, current_streak)
+        else:
+            current_streak = 1
+            current_color = results[i]
 
-# --- Layout do aplicativo ---
-st.title("🔮 Analisador de Padrões de Apostas")
-st.markdown("Uma ferramenta para identificar e analisar padrões em sequências de resultados.")
-st.markdown("---")
+    if max_streak >= 5: risk_score += 40
+    elif max_streak >= 4: risk_score += 25
+    elif max_streak >= 3: risk_score += 10
 
-## 1. Gestão de Banca
-st.markdown("### 1. Gestão de Banca")
-st.write("Defina sua banca e o percentual de aposta para um controle financeiro inteligente.")
+    empate_streak = 0
+    for r in reversed(results):
+        if r == 'E': empate_streak += 1
+        else: break
+    if empate_streak >= 2: risk_score += 30
 
-col_banca1, col_banca2 = st.columns(2)
-with col_banca1:
-    banca_input = st.number_input("Banca Inicial (R$):", min_value=0.0, step=10.0, format="%.2f")
-    if st.button("Definir Banca", use_container_width=True):
-        st.session_state.banca_inicial = banca_input
-        st.session_state.banca_atual = banca_input
-        st.session_state.acertos = 0
-        st.session_state.erros = 0
+    if risk_score >= 50: return 'high'
+    if risk_score >= 25: return 'medium'
+    return 'low'
 
-with col_banca2:
-    st.session_state.pct_aposta = st.number_input("Percentual da Aposta (%):", min_value=0.1, max_value=10.0, value=2.0, step=0.1, format="%.1f")
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.session_state.banca_atual > 0:
-        valor_aposta = st.session_state.banca_atual * (st.session_state.pct_aposta / 100)
-        st.info(f"**Próxima Aposta Sugerida:** R$ {valor_aposta:.2f}")
+def detect_manipulation(data):
+    results = [d['result'] for d in data]
+    manipulation_score = 0
 
-if st.session_state.banca_inicial is not None:
-    st.markdown(f"**Banca Atual:** R$ {st.session_state.banca_atual:.2f} | **Acertos:** {st.session_state.acertos} | **Erros:** {st.session_state.erros}")
-    st.markdown(f"**Lucro/Prejuízo:** R$ {(st.session_state.banca_atual - st.session_state.banca_inicial):.2f}")
-    if st.session_state.banca_atual <= 0:
-        st.error("Sua banca zerou. Por favor, insira um novo valor para continuar.")
+    empate_count = results.count('E')
+    if empate_count / len(results) > 0.25: manipulation_score += 30
 
-st.markdown("---")
+    if len(results) >= 6:
+        recent6 = results[-6:]
+        p1, p2 = recent6[:3], recent6[3:]
+        if len(set(p1)) == 1 and len(set(p2)) == 1 and p1[0] != p2[0]:
+            manipulation_score += 25
 
-## 2. Inserir Resultados
-st.markdown("### 2. Inserir Resultados")
-st.write("Clique nos botões correspondentes ao resultado do jogo para adicionar ao histórico.")
+    if manipulation_score >= 40: return 'high'
+    if manipulation_score >= 20: return 'medium'
+    return 'low'
 
-col1, col2, col3 = st.columns(3)
+def make_prediction(data, patterns):
+    results = [d['result'] for d in data]
+    last_result = results[-1]
+    prediction = {'color': None, 'confidence': 0}
+
+    streak = next((p for p in patterns if p['type'] == 'streak'), None)
+    if streak:
+        if streak['length'] >= 3:
+            other_colors = ['C', 'V']
+            other_colors.remove(streak['color'])
+            prediction['color'] = other_colors[0]
+            prediction['confidence'] = min(90, 50 + streak['length'] * 10)
+        else:
+            prediction['color'] = streak['color']
+            prediction['confidence'] = 65
+    else:
+        prediction['color'] = 'C' if last_result == 'V' else 'V'
+        prediction['confidence'] = 55
+
+    return prediction
+
+def get_recommendation(risk, manipulation, patterns):
+    if risk == 'high' or manipulation == 'high': return 'avoid'
+    if patterns and risk == 'low': return 'bet'
+    return 'watch'
+
+def get_color_name(color):
+    return {'C': 'Vermelho', 'V': 'Azul', 'E': 'Empate'}.get(color, '')
+
+# INTERFACE STREAMLIT 🔲
+st.title("🎰 Sistema de Análise Preditiva - Cassino")
+
+col1, col2 = st.columns([2, 1])
+
 with col1:
-    if st.button("🔴 Vitória da Casa", use_container_width=True):
-        st.session_state.historico.append('V')
+    st.subheader("Inserir Resultados")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.button("🔴 Vermelho (C)", on_click=add_result, args=('C',))
+    with c2:
+        st.button("🔵 Azul (V)", on_click=add_result, args=('V',))
+    with c3:
+        st.button("🟡 Empate (E)", on_click=add_result, args=('E',))
+
+    st.button("🔄 Resetar Histórico", on_click=reset_history)
+
+    st.subheader("📊 Histórico (Mais recente à esquerda)")
+    if st.session_state.history:
+        max_results = 90
+        recent_history = st.session_state.history[-max_results:][::-1]
+
+        lines = []
+        for i in range(0, len(recent_history), 9):
+            row = recent_history[i:i+9]
+            emojis = [emoji_map[r['result']] for r in row]
+            lines.append(" ".join(emojis))
+
+        for line in lines:
+            st.markdown(f"**{line}**")
+    else:
+        st.info("Nenhum resultado inserido ainda.")
+
 with col2:
-    if st.button("🔵 Vitória do Visitante", use_container_width=True):
-        st.session_state.historico.append('A')
-with col3:
-    if st.button("🟡 Empate", use_container_width=True):
-        st.session_state.historico.append('E')
+    st.subheader("📈 Análise")
+    analysis = st.session_state.analysis
 
-col4, col5 = st.columns(2)
-with col4:
-    if st.button("Desfazer", help="Remove o último resultado inserido", use_container_width=True):
-        if st.session_state.historico:
-            st.session_state.historico.pop()
-with col5:
-    if st.button("Limpar Histórico", help="Apaga todos os resultados", type="primary", use_container_width=True):
-        st.session_state.historico.clear()
+    st.write("**🔒 Nível de Manipulação:**", f"Nível {analysis['manipulation_level']}")
+    for note in analysis['manipulation_notes']:
+        st.write(f"📌 {note}")
 
-st.markdown("---")
+    st.write("**⚠️ Risco:**", analysis['riskLevel'].capitalize())
+    st.write("**🎭 Manipulação Aparente:**", analysis['manipulation'].capitalize())
 
-## 3. Análise e Sugestão
-st.markdown("### 3. Análise e Sugestão")
-if st.session_state.historico:
-    padrao, sugestao_direta, sugestao_completa = analisar_padrao(list(st.session_state.historico))
-    st.markdown(f"**Padrão Detectado:** `{padrao}`")
-    st.success(f"**{sugestao_direta}**")
-    st.info(f"**Explicação:** {sugestao_completa}")
-    
-    st.markdown("---")
-    st.markdown("#### Registro do Resultado da Aposta")
-    col_aposta1, col_aposta2 = st.columns(2)
-    with col_aposta1:
-        if st.session_state.banca_atual > 0:
-            if st.button("Ganhei ✅", use_container_width=True):
-                atualizar_banca('ganhou')
-                st.success("Banca atualizada! Vitória registrada.")
-    with col_aposta2:
-        if st.session_state.banca_atual > 0:
-            if st.button("Perdi ❌", use_container_width=True):
-                atualizar_banca('perdeu')
-                st.error("Banca atualizada! Derrota registrada.")
-else:
-    st.info("O histórico está vazio. Insira resultados para começar a análise.")
+    st.write("**🎯 Previsão:**", emoji_map.get(analysis['prediction'], "Aguardando..."))
+    st.write("**📊 Confiança:**", f"{analysis['confidence']}%")
+    st.write("**💡 Recomendação:**", analysis['recommendation'].capitalize())
 
-st.markdown("---")
-
-## 4. Histórico de Resultados
-st.markdown("### 4. Histórico de Resultados")
-historico_str = " ".join([mapear_emojis[r] for r in reversed(st.session_state.historico)])
-st.markdown(f"**Mais Recente → Mais Antigo:**")
-st.markdown(f"### `{historico_str}`")
-
-# Agradecimento
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.markdown("---")
-st.write("Desenvolvido para análise de padrões de cassino. **Lembre-se:** jogue com responsabilidade.")
+    if analysis['patterns']:
+        st.write("### 🧩 Padrões Detectados:")
+        for p in analysis['patterns']:
+            st.write(f"- {p['description']}")
