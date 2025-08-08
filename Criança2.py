@@ -1,284 +1,226 @@
-# Parte inicial igual...
 import streamlit as st
 import time
 
-st.set_page_config(page_title="Sistema de Análise Preditiva - Cassino", layout="wide")
+# Configuração da página
+st.set_page_config(page_title="Football Studio AI Predictor", layout="wide")
 
+# Emojis e nomes
+emoji_map = {'C': '🔴', 'V': '🔵', 'E': '🟡'}
+color_name = {'C': 'Vermelho', 'V': 'Azul', 'E': 'Empate'}
+
+# Inicialização do estado
 if 'history' not in st.session_state:
     st.session_state.history = []
 
 if 'analysis' not in st.session_state:
-    st.session_state.analysis = {
-        'patterns': [],
-        'riskLevel': 'low',
-        'manipulation': 'none',
-        'prediction': None,
-        'confidence': 0,
-        'recommendation': 'watch',
-        'manipulation_level': 1,
-        'manipulation_notes': []
-    }
+    st.session_state.analysis = {}
 
-emoji_map = {'C': '🔴', 'V': '🔵', 'E': '🟡'}
+# Função para obter nome da cor
+def get_color_name(c):
+    return color_name.get(c, '')
 
+# Função para adicionar resultado
 def add_result(result):
     st.session_state.history.append({'result': result, 'timestamp': time.time()})
-    analyze_data()
+    analyze()
 
-def reset_history():
+# Resetar histórico
+def reset():
     st.session_state.history = []
-    st.session_state.analysis = {
-        'patterns': [],
-        'riskLevel': 'low',
-        'manipulation': 'none',
-        'prediction': None,
-        'confidence': 0,
-        'recommendation': 'watch',
-        'manipulation_level': 1,
-        'manipulation_notes': []
-    }
+    st.session_state.analysis = {}
 
-# ⚙️ ANALISE COMPLETA
-def analyze_data():
-    data = st.session_state.history
-    if len(data) < 6: return
-
-    recent = data[-27:]
-    patterns = detect_patterns(recent)
-    riskLevel = assess_risk(recent)
-    manipulation = detect_manipulation(recent)
-    prediction = make_prediction(recent, patterns)
-    level, notes = classify_manipulation_level(recent)
-
-    st.session_state.analysis = {
-        'patterns': patterns,
-        'riskLevel': riskLevel,
-        'manipulation': manipulation,
-        'prediction': prediction['color'],
-        'confidence': prediction['confidence'],
-        'recommendation': get_recommendation(riskLevel, manipulation, patterns),
-        'manipulation_level': level,
-        'manipulation_notes': notes
-    }
-
-# 🔍 FUNÇÕES PARA DETECÇÃO DOS 10 NÍVEIS
-def classify_manipulation_level(data):
-    results = [d['result'] for d in data]
-    level = 1
-    notes = []
-
-    if detect_simple_streak(results): level = 1; notes.append("Streak simples identificado")
-    elif detect_alternating(results): level = 2; notes.append("Alternância clara (1x1)")
-    elif detect_2x2_or_3x3(results): level = 3; notes.append("Padrão 2x2 ou 3x3")
-    elif detect_fake_streak_break(results): level = 4; notes.append("Quebra proposital de streak")
-    elif detect_anchor_empates(results): level = 5; notes.append("Empates como âncora")
-    elif detect_hidden_loop(results): level = 6; notes.append("Loop reverso escondido")
-    elif detect_strategic_break(results): level = 7; notes.append("Quebra estratégica após padrão")
-    elif detect_quantum_manipulation(results): level = 8; notes.append("Interferência quântica detectada")
-    elif detect_collapse_with_draw(results): level = 9; notes.append("Colapso de possibilidades + empate")
-    elif detect_camouflaged_quantum(results): level = 10; notes.append("Manipulação quântica camuflada")
-
-    return level, notes
-
-# 🔬 LÓGICAS BÁSICAS DOS NÍVEIS
-def detect_simple_streak(results):
-    return len(results) >= 3 and results[-1] == results[-2] == results[-3]
-
-def detect_alternating(results):
-    return len(results) >= 4 and all(results[i] != results[i+1] for i in range(-4, -1))
-
-def detect_2x2_or_3x3(results):
-    if len(results) >= 6:
-        last6 = results[-6:]
-        return last6[:3] == last6[3:] or (last6[0] == last6[1] and last6[2] == last6[3] and last6[4] == last6[5])
-    return False
-
-def detect_fake_streak_break(results):
-    if len(results) >= 5:
-        return results[-3] == results[-2] and results[-1] != results[-2]
-    return False
-
-def detect_anchor_empates(results):
-    return results[-1] == 'E' and ('C' in results[-4:-1] or 'V' in results[-4:-1])
-
-def detect_hidden_loop(results):
-    return len(results) >= 6 and results[-6] == results[-3] == results[-1]
-
-def detect_strategic_break(results):
-    if len(results) >= 7:
-        if results[-3] == results[-4] == results[-5] and results[-1] != results[-2]:
-            return True
-    return False
-
-def detect_quantum_manipulation(results):
-    return results.count('E') >= 3 and len(set(results[-5:])) >= 4
-
-def detect_collapse_with_draw(results):
-    return results[-1] == 'E' and results[-2] != results[-3] and results[-4] == results[-5]
-
-def detect_camouflaged_quantum(results):
-    return results[-1] == 'C' and results[-2] == 'V' and results[-3] == 'E' and results[-4] == 'C'
-
-# 🔮 FUNÇÕES ORIGINAIS (ajustadas se necessário) — CONTINUA...
+# Função que detecta padrões avançados
 def detect_patterns(data):
     patterns = []
     results = [d['result'] for d in data]
 
-    current_streak = 1
-    current_color = results[-1]
-    for i in range(len(results)-2, -1, -1):
-        if results[i] == current_color:
-            current_streak += 1
+    # Streak
+    streak_len = 1
+    for i in range(len(results) - 2, -1, -1):
+        if results[i] == results[i + 1]:
+            streak_len += 1
         else:
             break
-
-    if current_streak >= 2:
+    if streak_len >= 2:
         patterns.append({
             'type': 'streak',
-            'color': current_color,
-            'length': current_streak,
-            'description': f"{current_streak}x {get_color_name(current_color)} seguidas"
+            'color': results[-1],
+            'length': streak_len,
+            'description': f"{streak_len}x {get_color_name(results[-1])} seguidas"
         })
 
-    if len(results) >= 4:
-        alternating = True
-        for i in range(-1, -4, -1):
-            if i-1 >= -len(results) and results[i] == results[i-1]:
-                alternating = False
-                break
-        if alternating:
-            patterns.append({'type': 'alternating', 'description': 'Padrão alternado detectado'})
+    # Alternância camuflada (últimos 6 resultados alternando)
+    if len(results) >= 6:
+        alt_like = all(results[i] != results[i+1] for i in range(-6, -1))
+        if alt_like:
+            patterns.append({'type': 'alt-camuflada', 'description': 'Alternância oculta detectada'})
 
-        last4 = results[-4:]
-        if last4[0] == last4[1] and last4[2] == last4[3] and last4[0] != last4[2]:
-            patterns.append({'type': '2x2', 'description': 'Padrão 2x2 detectado'})
+    # Padrão 2x2 reverso (ex: C C V V ou V V C C)
+    if len(results) >= 4:
+        if results[-1] == results[-2] and results[-3] == results[-4] and results[-1] != results[-3]:
+            patterns.append({'type': '2x2-reverse', 'description': '2x2 reverso detectado'})
+
+    # Empate âncora (quando empate antecede mudança)
+    if len(results) >= 5:
+        if results[-2] == 'E' and results[-1] != 'E':
+            patterns.append({'type': 'empate-âncora', 'description': 'Empate atuando como âncora de quebra'})
 
     return patterns
 
-def assess_risk(data):
+# Função que avalia nível de manipulação (1 a 9)
+def get_manipulation_level(data):
+    score = 0
+    types = []
     results = [d['result'] for d in data]
-    risk_score = 0
 
-    max_streak = 1
-    current_streak = 1
-    current_color = results[0]
-    for i in range(1, len(results)):
-        if results[i] == current_color:
-            current_streak += 1
-            max_streak = max(max_streak, current_streak)
-        else:
-            current_streak = 1
-            current_color = results[i]
+    # Empate como âncora oculta
+    if results.count('E') >= len(results)*0.2:
+        score += 20
+        types.append("Empate Camuflado")
 
-    if max_streak >= 5: risk_score += 40
-    elif max_streak >= 4: risk_score += 25
-    elif max_streak >= 3: risk_score += 10
+    # Alternância forçada
+    if len(results) >= 6 and all(results[i] != results[i+1] for i in range(len(results)-1)):
+        score += 15
+        types.append("Alternância Forçada")
 
-    empate_streak = 0
-    for r in reversed(results):
-        if r == 'E': empate_streak += 1
-        else: break
-    if empate_streak >= 2: risk_score += 30
+    # Streak longo com quebra por empate
+    for i in range(len(results)-4):
+        if results[i] == results[i+1] == results[i+2] and results[i+3] == 'E':
+            score += 15
+            types.append("Colapso com Empate")
 
-    if risk_score >= 50: return 'high'
-    if risk_score >= 25: return 'medium'
-    return 'low'
+    # Padrão 2x2 repetido
+    rep_2x2 = 0
+    for i in range(0, len(results)-3, 2):
+        if results[i] == results[i+1] and results[i+2] == results[i+3] and results[i] != results[i+2]:
+            rep_2x2 += 1
+    if rep_2x2 >= 2:
+        score += 20
+        types.append("2x2 Repetido")
 
-def detect_manipulation(data):
+    # Domínio forte de uma cor
+    for c in ['C', 'V']:
+        if results.count(c)/len(results) > 0.75:
+            score += 25
+            types.append(f"Domínio de {get_color_name(c)}")
+
+    level = min(score//10 + 1, 9)
+    return level, list(set(types))
+
+# Função avançada de predição
+def predict_next(data, level, patterns):
     results = [d['result'] for d in data]
-    manipulation_score = 0
+    last = results[-1]
+    confidence = 50
+    prediction = None
 
-    empate_count = results.count('E')
-    if empate_count / len(results) > 0.25: manipulation_score += 30
+    # Padrão 2x2 reverso
+    if any(p['type'] == '2x2-reverse' for p in patterns):
+        prediction = 'E'
+        confidence = 78 - level * 2
 
-    if len(results) >= 6:
-        recent6 = results[-6:]
-        p1, p2 = recent6[:3], recent6[3:]
-        if len(set(p1)) == 1 and len(set(p2)) == 1 and p1[0] != p2[0]:
-            manipulation_score += 25
+    # Alternância camuflada
+    elif any(p['type'] == 'alt-camuflada' for p in patterns):
+        prediction = 'V' if last == 'C' else 'C'
+        confidence = 75 - level
 
-    if manipulation_score >= 40: return 'high'
-    if manipulation_score >= 20: return 'medium'
-    return 'low'
-
-def make_prediction(data, patterns):
-    results = [d['result'] for d in data]
-    last_result = results[-1]
-    prediction = {'color': None, 'confidence': 0}
-
+    # Streak longo e manipulação alta
     streak = next((p for p in patterns if p['type'] == 'streak'), None)
     if streak:
-        if streak['length'] >= 3:
-            other_colors = ['C', 'V']
-            other_colors.remove(streak['color'])
-            prediction['color'] = other_colors[0]
-            prediction['confidence'] = min(90, 50 + streak['length'] * 10)
-        else:
-            prediction['color'] = streak['color']
-            prediction['confidence'] = 65
-    else:
-        prediction['color'] = 'C' if last_result == 'V' else 'V'
-        prediction['confidence'] = 55
+        if streak['length'] >= 5 and level >= 6:
+            prediction = 'E'
+            confidence = 70
+        elif streak['length'] >= 3:
+            prediction = streak['color']
+            confidence = 80 - level * 3
 
-    return prediction
+    # Empate âncora
+    if 'empate-âncora' in [p['type'] for p in patterns]:
+        prediction = 'E'
+        confidence = 85 - level * 2
 
-def get_recommendation(risk, manipulation, patterns):
-    if risk == 'high' or manipulation == 'high': return 'avoid'
-    if patterns and risk == 'low': return 'bet'
-    return 'watch'
+    if prediction is None:
+        prediction = 'C' if last == 'V' else 'V'
+        confidence = 55 - level * 2
 
-def get_color_name(color):
-    return {'C': 'Vermelho', 'V': 'Azul', 'E': 'Empate'}.get(color, '')
+    confidence = max(40, min(confidence, 95))
 
-# INTERFACE STREAMLIT 🔲
-st.title("🎰 Sistema de Análise Preditiva - Cassino")
+    return {
+        'color': prediction,
+        'confidence': confidence
+    }
+
+# Detecta brechas para evitar apostar
+def detect_breach(data, level, manipulation_types):
+    if level >= 7:
+        return True
+    if "Empate Camuflado" in manipulation_types:
+        return True
+    return False
+
+# Função que faz toda análise combinada
+def analyze():
+    data = st.session_state.history[-90:]
+    if len(data) < 9:
+        st.session_state.analysis = {}
+        return
+
+    level, manipulation_types = get_manipulation_level(data)
+    patterns = detect_patterns(data)
+    prediction_info = predict_next(data, level, patterns)
+    breach = detect_breach(data, level, manipulation_types)
+
+    recommendation = "Apostar" if prediction_info['confidence'] >= 70 and not breach else "Aguardar"
+
+    st.session_state.analysis = {
+        'manipulation_level': level,
+        'manipulation_types': manipulation_types,
+        'patterns': patterns,
+        'prediction': prediction_info['color'],
+        'confidence': prediction_info['confidence'],
+        'breach_detected': breach,
+        'recommendation': recommendation
+    }
+
+# Interface Streamlit
+st.title("🎯 Football Studio - Sistema Inteligente com IA Avançada")
 
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.subheader("Inserir Resultados")
+    st.subheader("🎮 Inserir Resultado")
     c1, c2, c3 = st.columns(3)
-    with c1:
-        st.button("🔴 Vermelho (C)", on_click=add_result, args=('C',))
-    with c2:
-        st.button("🔵 Azul (V)", on_click=add_result, args=('V',))
-    with c3:
-        st.button("🟡 Empate (E)", on_click=add_result, args=('E',))
+    with c1: st.button("🔴 Vermelho (C)", on_click=add_result, args=("C",))
+    with c2: st.button("🔵 Azul (V)", on_click=add_result, args=("V",))
+    with c3: st.button("🟡 Empate (E)", on_click=add_result, args=("E",))
+    st.button("🔄 Resetar Histórico", on_click=reset)
 
-    st.button("🔄 Resetar Histórico", on_click=reset_history)
-
-    st.subheader("📊 Histórico (Mais recente à esquerda)")
     if st.session_state.history:
-        max_results = 90
-        recent_history = st.session_state.history[-max_results:][::-1]
-
-        lines = []
-        for i in range(0, len(recent_history), 9):
-            row = recent_history[i:i+9]
-            emojis = [emoji_map[r['result']] for r in row]
-            lines.append(" ".join(emojis))
-
-        for line in lines:
-            st.markdown(f"**{line}**")
+        st.subheader("📊 Histórico (mais recente à esquerda)")
+        hist = st.session_state.history[::-1]
+        for i in range(0, len(hist), 9):
+            row = hist[i:i+9]
+            st.markdown("**" + " ".join(emoji_map[d['result']] for d in row) + "**")
     else:
         st.info("Nenhum resultado inserido ainda.")
 
 with col2:
     st.subheader("📈 Análise")
+
     analysis = st.session_state.analysis
+    if analysis:
+        st.write(f"🔢 Nível de Manipulação: {analysis['manipulation_level']} / 9")
+        if analysis['manipulation_types']:
+            st.write("⚠️ Tipos de Manipulação Detectados:")
+            for t in analysis['manipulation_types']:
+                st.write(f"- {t}")
 
-    st.write("**🔒 Nível de Manipulação:**", f"Nível {analysis['manipulation_level']}")
-    for note in analysis['manipulation_notes']:
-        st.write(f"📌 {note}")
-
-    st.write("**⚠️ Risco:**", analysis['riskLevel'].capitalize())
-    st.write("**🎭 Manipulação Aparente:**", analysis['manipulation'].capitalize())
-
-    st.write("**🎯 Previsão:**", emoji_map.get(analysis['prediction'], "Aguardando..."))
-    st.write("**📊 Confiança:**", f"{analysis['confidence']}%")
-    st.write("**💡 Recomendação:**", analysis['recommendation'].capitalize())
-
-    if analysis['patterns']:
-        st.write("### 🧩 Padrões Detectados:")
+        st.write(f"🎯 Previsão: {emoji_map.get(analysis['prediction'], '...')}  ({analysis['confidence']}%)")
+        st.write("🔎 Padrões Detectados:")
         for p in analysis['patterns']:
             st.write(f"- {p['description']}")
+
+        st.write(f"⚠️ Brecha Detectada: {'Sim' if analysis['breach_detected'] else 'Não'}")
+        st.write(f"✅ Recomendação: {analysis['recommendation']}")
+    else:
+        st.write("Aguardando inserção de dados para análise...")
