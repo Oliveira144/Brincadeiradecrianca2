@@ -84,8 +84,8 @@ def detect_patterns(data):
         'description': f"Distribuição: 🔴{count_c} 🔵{count_v} 🟡{count_e}"
     })
 
-    # Padrões de alternância
-    alternancias = sum(1 for i in range(1, len(results)) if results[i] != results[i-1] else 0)
+    # Padrões de alternância (corrigido)
+    alternancias = sum(1 for i in range(1, len(results)) if results[i] != results[i-1] else 0 for i in range(1, len(results)))
     percent_alt = (alternancias / (len(results)-1)) * 100 if len(results) > 1 else 0
     patterns.append({
         'type': 'alternancia',
